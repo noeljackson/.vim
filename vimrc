@@ -5,7 +5,7 @@ call pathogen#helptags()
 set nocompatible              " be iMproved, required
 filetype off                  " required
 
-filetype plugin indent on    " required
+filetype plugin indent on     " required
 
 "
 " Settings
@@ -49,6 +49,9 @@ set nocursorline
 syntax sync minlines=256
 set synmaxcol=300
 set re=1
+
+" do not hide markdown
+set conceallevel=0
 
 " open help vertically
 command! -nargs=* -complete=help Help vertical belowright help <args>
@@ -126,10 +129,10 @@ endif
 " Convenient command to see the difference between the current buffer and the
 " file it was loaded from, thus the changes you made.
 " Only define it when not defined already.
-"if !exists(":DiffOrig")
-""	command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
-""				\ | wincmd p | diffthis
-"endif
+if !exists(":DiffOrig")
+	command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
+				\ | wincmd p | diffthis
+endif
 
 " Only do this part when compiled with support for autocommands.
 if has("autocmd")
@@ -328,7 +331,6 @@ au BufNewFile,BufRead *.jade setlocal expandtab ts=2 sw=2
 augroup filetypedetect
   au BufNewFile,BufRead .tmux.conf*,tmux.conf* setf tmux
   au BufNewFile,BufRead .nginx.conf*,nginx.conf* setf nginx
-  au BufNewFile,BufRead *.jade setf pug
 augroup END
 
 au FileType nginx setlocal noet ts=4 sw=4 sts=4
@@ -376,9 +378,9 @@ set wildignore+=*.sw?                            " Vim swap files
 set wildignore+=*.DS_Store                       " OSX bullshit
 set wildignore+=*.luac                           " Lua byte code
 set wildignore+=migrations                       " Django migrations
-set wildignore+=go/pkg                       " Go static files
-set wildignore+=go/bin                       " Go bin files
-set wildignore+=go/bin-vagrant               " Go bin-vagrant files
+set wildignore+=go/pkg                           " Go static files
+set wildignore+=go/bin                           " Go bin files
+set wildignore+=go/bin-vagrant                   " Go bin-vagrant files
 set wildignore+=*.pyc                            " Python byte code
 set wildignore+=*.orig                           " Merge resolution files
 
@@ -395,8 +397,11 @@ let g:ctrlp_switch_buffer = 'et'	" jump to a file if it's open already
 let g:ctrlp_mruf_max=450 		" number of recently opened files
 let g:ctrlp_max_files=0  		" do not limit the number of searchable files
 let g:ctrlp_use_caching = 1
-let g:ctrlp_clear_cache_on_exit = 0
+let g:ctrlp_clear_cache_on_exit = 1
 let g:ctrlp_cache_dir = $HOME.'/.cache/ctrlp'
+
+" ignore files in .gitignore
+let g:ctrlp_user_command = ['.git', 'cd %s && git ls-files -co --exclude-standard']
 
 let g:ctrlp_buftag_types = {'go' : '--language-force=go --golang-types=ftv'}
 
@@ -492,6 +497,7 @@ let NERDTreeIgnore=['\.vim$', '\~$', '\.git$', '.DS_Store']
 autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTreeType") && b:NERDTreeType == "primary") | q | endif
 
 " ==================== vim-json ====================
+
 let g:vim_json_syntax_conceal = 0
 
 " ==================== Completion =========================
@@ -505,13 +511,10 @@ if has('nvim')
 
 
   " Use partial fuzzy matches like YouCompleteMe
-  call deoplete#custom#set('_', 'matchers', ['matcher_fuzzy'])
-  call deoplete#custom#set('_', 'converters', ['converter_remove_paren'])
-  call deoplete#custom#set('_', 'disabled_syntaxes', ['Comment', 'String'])
+  call deoplete#custom#source('_', 'matchers', ['matcher_fuzzy'])
+  call deoplete#custom#source('_', 'converters', ['converter_remove_paren'])
+  call deoplete#custom#source('_', 'disabled_syntaxes', ['Comment', 'String'])
 endif
-
-" ==================== vim-mardownfmt ====================
-"let g:markdownfmt_autosave = 1
 
 " ==================== vim-multiple-cursors ====================
 let g:multi_cursor_use_default_mapping=0
@@ -537,14 +540,29 @@ endfunction
 " ========= vim-better-whitespace ==================
 
 " auto strip whitespace except for file with extention blacklisted
-let blacklist = ['markdown', 'md']
-autocmd BufWritePre * StripWhitespace
+let blacklist = ['diff', 'gitcommit', 'unite', 'qf', 'help', 'markdown']
+autocmd BufWritePre * if index(blacklist, &ft) < 0 | StripWhitespace
 
-" ================= clang-format ==================
+" ========= vim-markdown ==================
 
-map <C-K> :pyf /usr/share/vim/addons/syntax/clang-format-3.8.py<cr>
-imap <C-K> <c-o>:pyf /usr/share/vim/addons/syntax/clang-format-3.8.py<cr>
-autocmd BufWritePre *.cpp,*.hpp pyf /usr/share/vim/addons/syntax/clang-format-3.8.py
+" disable folding
+let g:vim_markdown_folding_disabled = 1
+
+" Allow for the TOC window to auto-fit when it's possible for it to shrink.
+" It never increases its default size (half screen), it only shrinks.
+let g:vim_markdown_toc_autofit = 1
+
+" Disable conceal
+let g:vim_markdown_conceal = 0
+
+" Allow the ge command to follow named anchors in links of the form
+" file#anchor or just #anchor, where file may omit the .md extension as usual
+let g:vim_markdown_follow_anchor = 1
+
+" highlight frontmatter
+let g:vim_markdown_frontmatter = 1
+let g:vim_markdown_toml_frontmatter = 1
+let g:vim_markdown_json_frontmatter = 1
 
 " =================== vim-airline ========================
 
@@ -555,5 +573,23 @@ let g:remoteSession = ($STY == "")
 if !g:remoteSession
   let g:airline_powerline_fonts=1
 endif
+
+" =================== rust.vim ========================
+
+" Enable automatic running of :RustFmt when a buffer is saved.
+let g:rustfmt_autosave = 1
+
+" The :RustPlay command will send the current selection, or if nothing is
+" selected the current buffer, to the Rust playpen. Then copy the url to the
+" clipboard.
+let g:rust_clip_command = 'xclip -selection clipboard'
+
+" =================== vim-terraform ========================
+
+" Allow vim-terraform to override your .vimrc indentation syntax for matching files.
+"let g:terraform_align=1
+
+" Run terraform fmt on save.
+let g:terraform_fmt_on_save=1
 
 " vim:ts=2:sw=2:et
